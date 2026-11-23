@@ -6,51 +6,43 @@ supports a verified subset of Flow on standalone JavaScript inputs.
 
 ## Install and use with Topiary
 
-Install [Topiary CLI 0.8.0](https://github.com/tweag/topiary/releases/tag/v0.8.0),
-[Tree-sitter CLI 0.27.2](https://github.com/tree-sitter/tree-sitter/releases/tag/v0.27.2),
-Node.js 22 or later (with npm), and a C compiler. Make sure `topiary` and
-`tree-sitter` are on your `PATH`. Clone the repository and build the parsers once:
+Install [Topiary CLI 0.8.0](https://github.com/tweag/topiary/releases/tag/v0.8.0)
+and a C compiler. Download the Git configuration and tell Topiary to use it:
+
+```sh
+config="$HOME/.config/topiary/topiary-html.ncl"
+mkdir -p "$(dirname "$config")"
+curl -fsSL https://raw.githubusercontent.com/InnocentZero/topiary-html/main/languages.git.ncl -o "$config"
+export TOPIARY_CONFIG_FILE="$config"
+
+printf '%s\n' '<p class=example>Hello</p>' | topiary format -l html
+```
+
+Topiary fetches the generated parsers and queries from a pinned Git revision,
+then compiles and caches the parsers on first use. No repository checkout,
+Tree-sitter CLI, Node.js, or Actions artifact is required. Set
+`TOPIARY_CONFIG_FILE` in your editor's formatter environment to use it there.
+Use `-l css`, `-l javascript`, or `-l json` for other stdin inputs, or
+`topiary format path/to/file.html` to format a file in place by extension.
+
+### Optional: byte preservation and Flow
+
+Use the stdin wrapper to preserve authored HTML/CSS
+BOM and edge whitespace, or format supported standalone Flow files. The
+wrapper accepts Flow output only when Hermes verifies the AST and comment
+placement.
 
 ```sh
 git clone https://github.com/InnocentZero/topiary-html.git
 cd topiary-html
 npm ci --ignore-scripts
 npm run build:parser
-```
-
-Use these environment variables to run `topiary` directly, either in your
-shell or in the environment your editor passes to the formatter. Set them
-from the repository root so they hold absolute paths:
-
-```sh
-export TOPIARY_CONFIG_FILE="$PWD/languages.ncl"
-export TOPIARY_LANGUAGE_DIR="$PWD/queries"
-
-# Preview to stdout. For stdin, use -l css, javascript, or json as needed.
-printf '%s\n' '<p class=example>Hello</p>' | topiary format -l html
-```
-
-Run `topiary format path/to/example.html` to write in place and select the
-language by extension. Keep the config, queries, and compiled libraries together.
-The native CLI does not need Node.js or a compiler after setup.
-
-Topiary can fetch and compile a Git-hosted grammar when the configuration uses
-`grammar.source.git` and the Git revision contains generated Tree-sitter C
-sources. This repository instead ships grammar definitions and uses
-`grammar.source.path` to load local libraries. `topiary prefetch` checks those
-paths but does not run `npm run build:parser` or generate the injection queries.
-
-### Optional: byte preservation and Flow
-
-From the repository root, use the stdin wrapper to preserve authored HTML/CSS
-BOM and edge whitespace, or format supported standalone Flow files. The
-wrapper accepts Flow output only when Hermes verifies the AST and comment
-placement.
-
-```sh
 npm run --silent format -- -l html < example.html
 npm run --silent format -- -l javascript < example.js
 ```
+
+This local build uses Node.js 22+, [Tree-sitter CLI 0.27.2](https://github.com/tree-sitter/tree-sitter/releases/tag/v0.27.2),
+and a C compiler. It uses `languages.ncl`, the local-library configuration.
 
 ## Parser sources
 
