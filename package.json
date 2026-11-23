@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "format": "node scripts/format.mjs",
-    "build:parser": "node scripts/build-embedded-css-query.mjs && node scripts/build-flow-parser.mjs && cd parser && tree-sitter generate --abi 14 && ${CC:-cc} -Isrc -O2 -fPIC -shared src/parser.c src/scanner.c -o html.so && cd css && tree-sitter generate --abi 14 && ${CC:-cc} -Isrc -O2 -fPIC -shared src/parser.c src/scanner.c -o css.so && cd ../javascript && tree-sitter generate --abi 14 && ${CC:-cc} -Isrc -O2 -fPIC -shared src/parser.c src/scanner.c -o javascript.so && cd ../.. && ${CC:-cc} -Inode_modules/tree-sitter-json/src -O2 -fPIC -shared node_modules/tree-sitter-json/src/parser.c -o parser/json.so",
+    "build:parser": "node scripts/build-embedded-css-query.mjs && node scripts/build-flow-parser.mjs && cd parser && tree-sitter generate --abi 14 && ${CC:-cc} -Isrc -O2 -fPIC -shared src/parser.c src/scanner.c -o html.so && cd css && tree-sitter generate --abi 14 && ${CC:-cc} -Isrc -O2 -fPIC -shared src/parser.c src/scanner.c -o css.so && cd ../javascript && tree-sitter generate --abi 14 && ${CC:-cc} -Isrc -O2 -fPIC -shared src/parser.c src/scanner.c -o javascript.so && cd .. && ${CC:-cc} -Ijson/src -O2 -fPIC -shared json/src/parser.c -o json.so",
     "topiary": "TOPIARY_LANGUAGE_DIR=queries topiary -C languages.ncl"
   },
   "devDependencies": {
