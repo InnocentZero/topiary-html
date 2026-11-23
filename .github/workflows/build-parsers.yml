@@ -1,0 +1,89 @@
+name: Build Topiary parsers
+
+on: [push, pull_request, workflow_dispatch]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.platform }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux-x86_64
+            runner: ubuntu-24.04
+            tree_sitter: linux-x64
+            tree_sitter_sha256: 7ed56d152c52437397b9fcaa43cf341f49933cecc1ca291843f0d347c6e2cb3a
+            topiary: x86_64-unknown-linux-gnu
+            topiary_sha256: 42e54ff151dd6b20621166a09e3a5df2b367a108799900c3adbfc9c10dc93aa1
+          - platform: linux-arm64
+            runner: ubuntu-24.04-arm
+            tree_sitter: linux-arm64
+            tree_sitter_sha256: 34fcc5c4fa7bdd2058a2a45a03b6eb9a49b03a93b6d52ec750f99b1516d98d33
+            topiary: aarch64-unknown-linux-gnu
+            topiary_sha256: db60488f4e4bc49e5ce1d2d9ed074c620564e6a2ac0bae6e099ac86bc2e7710b
+          - platform: macos-x86_64
+            runner: macos-15-intel
+            tree_sitter: macos-x64
+            tree_sitter_sha256: fefe3a26e93d4ef7a16711c18587801d7d96c3dec3305db112fe4143cd900d91
+            topiary: x86_64-apple-darwin
+            topiary_sha256: 59a409ab6367e959733bd0aa28bd0579e60580ad20026323a9bae7068f512fef
+          - platform: macos-arm64
+            runner: macos-15
+            tree_sitter: macos-arm64
+            tree_sitter_sha256: 5a08b66e5713b0c69691611250b2191d07139647a3c6e39ba85954284b634d2d
+            topiary: aarch64-apple-darwin
+            topiary_sha256: 712473662a15c66679e81418bb251f80d134d66e7f480df53d8c4eeff978ed32
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install pinned build and smoke-test tools
+        shell: bash
+        env:
+          TREE_SITTER: ${{ matrix.tree_sitter }}
+          TREE_SITTER_SHA256: ${{ matrix.tree_sitter_sha256 }}
+          TOPIARY: ${{ matrix.topiary }}
+          TOPIARY_SHA256: ${{ matrix.topiary_sha256 }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/topiary-tools"
+          cd "$RUNNER_TEMP/topiary-tools"
+          curl --fail --silent --show-error --location --retry 3 \
+            "https://github.com/tree-sitter/tree-sitter/releases/download/v0.27.2/tree-sitter-$TREE_SITTER.gz" \
+            -o tree-sitter.gz
+          printf '%s  tree-sitter.gz\n' "$TREE_SITTER_SHA256" | shasum -a 256 -c -
+          gzip -d tree-sitter.gz
+          chmod +x tree-sitter
+          curl --fail --silent --show-error --location --retry 3 \
+            "https://github.com/tweag/topiary/releases/download/v0.8.0/topiary-cli-$TOPIARY.tar.xz" \
+            -o topiary.tar.xz
+          printf '%s  topiary.tar.xz\n' "$TOPIARY_SHA256" | shasum -a 256 -c -
+          tar -xJf topiary.tar.xz --strip-components=1 "topiary-cli-$TOPIARY/topiary"
+          printf '%s\n' "$PWD" >> "$GITHUB_PATH"
+      - name: Build native parsers and generated queries
+        run: |
+          npm ci --ignore-scripts
+          npm run build:parser
+      - name: Package and smoke-test the install bundle
+        shell: bash
+        env:
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          bundle="topiary-parsers-$PLATFORM"
+          bash scripts/package-parser-bundle.sh "$bundle.tar.gz"
+          mkdir "$RUNNER_TEMP/bundle-check"
+          tar -xzf "$bundle.tar.gz" -C "$RUNNER_TEMP/bundle-check"
+          node scripts/smoke-parser-bundle.mjs "$RUNNER_TEMP/bundle-check"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: topiary-parsers-${{ matrix.platform }}
+          path: topiary-parsers-${{ matrix.platform }}.tar.gz
+          if-no-files-found: error
